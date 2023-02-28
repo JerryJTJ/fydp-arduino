@@ -9,41 +9,41 @@ DATA_BUFFER = ""
 MESSAGE_COMPLETE = False
 
 # Functions:
+def setup_serial(baud_rate, serial_port_name):
+    """Setups the serial port"""
 
+    global SERIALPORT
 
-def setupSerial(baudRate, serialPortName):
-
-    global serialPort
-
-    serialPort = serial.Serial(
-        port=serialPortName, baudrate=baudRate, timeout=0, rtscts=True
+    SERIALPORT = serial.Serial(
+        port=serial_port_name, baudrate=baud_rate, timeout=0, rtscts=True
     )
 
-    print("Serial port " + serialPortName + " opened  Baudrate " + str(baudRate))
+    print("Serial port " + serial_port_name + " opened  Baudrate " + str(baud_rate))
 
-    waitForArduino()
+    wait_for_arduino()
 
 
-def sendToArduino(stringToSend):
+def send_to_arduino(string_to_send):
     """Sends a message to the Arduino with start- and end-markers."""
 
     # this adds the start- and end-markers before sending
-    global serialPort
+    global SERIALPORT
 
-    stringWithMarkers = "{}{}{}".format(START_MARKER, stringToSend, END_MARKER)
+    string_with_markers = f"{START_MARKER}{string_to_send}{END_MARKER}"
 
     try:
-        serialPort.write(stringWithMarkers.encode("utf-8"))
+        SERIALPORT.write(string_with_markers.encode("utf-8"))
     except serial.SerialException as error:
         print("Error sending data to Arduino:", error)
 
 
-def recvLikeArduino():
+def recv_like_arduino():
+    """Setups start/end markers for recieving"""
 
-    global serialPort, DATA_STARTED, DATA_BUFFER, MESSAGE_COMPLETE
+    global DATA_STARTED, DATA_BUFFER, MESSAGE_COMPLETE
 
-    if serialPort.inWaiting() > 0 and not MESSAGE_COMPLETE:
-        x = serialPort.read().decode("utf-8")  # decode needed for Python3
+    if SERIALPORT.inWaiting() > 0 and not MESSAGE_COMPLETE:
+        x = SERIALPORT.read().decode("utf-8")  # decode needed for Python3
 
         if DATA_STARTED:
             if x != END_MARKER:
@@ -62,41 +62,40 @@ def recvLikeArduino():
         return "XXX"
 
 
-def waitForArduino():
-
-    # wait until the Arduino sends 'Arduino is ready' - allows time for Arduino reset
-    # it also ensures that any bytes left over from a previous message are discarded
+def wait_for_arduino():
+    """Wait until the Arduino sends 'Arduino is ready' - allows time for Arduino reset.
+    It also ensures that any bytes left over from a previous message are discarded"""
 
     print("Waiting for Arduino to reset")
 
     msg = ""
     while msg.find("Arduino is ready") == -1:
-        msg = recvLikeArduino()
-        if not (msg == "XXX"):
+        msg = recv_like_arduino()
+        if msg != "XXX":
             print(msg)
 
 
 # Program
+def send_message(baud_rate, port, message):
+    """Sends message thru Serial port"""
 
-# Setup Serial Port, change baud rate & port as needed
-setupSerial(9600, "COM3")
+    # Setup Serial Port, change baud rate & port as needed
+    setup_serial(baud_rate, port)
+
+    # Send a message at intervals
+    send_to_arduino(message)
+    print(": Python Sent Message: \t\t\t", message)
+
+    while True:
+        # Check for a reply
+        arduino_reply = recv_like_arduino()
+
+        if arduino_reply != "XXX":
+            print(": Arduino Recieved: \t\t\t", arduino_reply)
+            SERIALPORT.close()
+            return
+
 
 # Code for Testing
-messagesList = ["ERROR", "OK", "OK", "OK"]
-count = 0
-replyCount = 0
-prevTime = time.time()
-while True:
-    # check for a reply
-    arduinoReply = recvLikeArduino()
-    if not (arduinoReply == "XXX"):
-        print(replyCount, ": Arduino Recieved: \t\t\t\t", arduinoReply)
-        replyCount += 1
-
-        # send a message at intervals
-    if time.time() - prevTime > 1.0:
-        messageToSend = messagesList[randrange(3)]
-        sendToArduino(messageToSend)
-        print(count, ": Python Sent Message: \t\t\t", messageToSend)
-        prevTime = time.time()
-        count += 1
+# send_message(9600, "COM3", "ERROR")
+# send_message(9600, "COM3", "OK")
