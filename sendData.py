@@ -76,7 +76,7 @@ def wait_for_arduino():
 
 
 # Program
-def send_message(baud_rate, port, message):
+def send_message(baud_rate, port, message, timeout):
     """Sends message thru Serial port"""
 
     # Setup Serial Port, change baud rate & port as needed
@@ -85,6 +85,8 @@ def send_message(baud_rate, port, message):
     # Send a message at intervals
     send_to_arduino(message)
     print(": Python Sent Message: \t\t\t", message)
+
+    timeout_time = time.time() + timeout
 
     while True:
         # Check for a reply
@@ -95,7 +97,14 @@ def send_message(baud_rate, port, message):
             SERIALPORT.close()
             return
 
+        if time.time() > timeout_time:
+            print("Error: Timed out after ", timeout, " s.")
+            SERIALPORT.close()
+            return
+
 
 # Code for Testing
-# send_message(9600, "COM3", "ERROR")
-# send_message(9600, "COM3", "OK")
+# send_message(9600, "COM3", "ERROR", 5)
+# send_message(9600, "COM3", "OK", 5)
+# send_message(9600, "COM3", "ERROR", 0.001)
+# send_message(9600, "COM3", "OK", 0.001)
